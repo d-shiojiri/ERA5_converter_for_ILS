@@ -1,0 +1,12 @@
+numpy>=1.24
+xarray>=2023.1
+netcdf4>=1.6
+dask>=2023.1
+tqdm>=4.65
+PyYAML>=6.0
+
+[regrid]
+xesmf>=0.8
+
+[test]
+pytest>=8.0

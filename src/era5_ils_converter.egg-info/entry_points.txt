@@ -1,0 +1,4 @@
+[console_scripts]
+era5-prep = era5_prep.cli:main
+era5-to-ils = era5_to_ils.cli:main
+ils-resample = era5_to_ils.cli:main

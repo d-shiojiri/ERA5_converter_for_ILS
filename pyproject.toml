@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "era5-ils-converter"
+version = "0.1.0"
+description = "Two-stage ERA5 to ILS conversion pipeline"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "xarray>=2023.1",
+  "netcdf4>=1.6",
+  "dask>=2023.1",
+  "tqdm>=4.65",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+regrid = ["xesmf>=0.8"]
+test = ["pytest>=8.0"]
+
+[project.scripts]
+era5-prep = "era5_prep.cli:main"
+ils-resample = "era5_to_ils.cli:main"
+era5-to-ils = "era5_to_ils.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
