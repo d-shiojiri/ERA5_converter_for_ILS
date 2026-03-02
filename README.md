@@ -115,3 +115,15 @@ Examples:
 ## Supported Target Variables
 
 `Tair`, `Qair`, `PSurf`, `Wind`, `SWdown`, `LWdown`, `Precip`, `Rainf`, `Snowf`, `CCover`
+
+## Perturbation (pf_random)
+
+Run from `perturbed_forcing`:
+
+```bash
+cd perturbed_forcing
+python3 perturb_era5_30min_members.py --years 2013-2022
+```
+
+- Input default: `../30min/{year}/ERA5.30min.<VAR>.1hrMap.ILS.<year>.nc`
+- Output default: `./ptb_30min/{year}/{01..20}/ERA5.30min.<VAR>.1hrMap.ILS.<year>.nc`
