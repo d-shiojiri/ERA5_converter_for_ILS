@@ -5,6 +5,5 @@ __pycache__/
 
 logs/
 era5_canonical/
-out/
-data/
+30min/
 docs/

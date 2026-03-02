@@ -27,17 +27,25 @@ convert_config="${ERA5_CONVERT_CONFIG:-$REPO_ROOT/configs/convert_default.yaml}"
 
 input_root="$(yaml_get "$prep_config" "input_root" "/data02/shiojiri/DATA/ERA5/download/reanalysis-era5-single-levels/")"
 canonical_root="$(yaml_get "$convert_config" "canonical_root" "$(yaml_get "$prep_config" "output_root" "/data02/shiojiri/ILS/ILS_data/ERA5/era5_canonical")")"
-output_root="$(yaml_get "$convert_config" "output_root" "/data02/shiojiri/ILS/ILS_data/ERA5/out")"
+output_root="$(yaml_get "$convert_config" "output_root" "/data02/shiojiri/ILS/ILS_data/ERA5/30min")"
 prep_chunks_time="$(yaml_get "$prep_config" "chunks_time" "24")"
 convert_chunks_time="$(yaml_get "$convert_config" "chunks_time" "24")"
+prep_chunks_time_rain_snow="$(yaml_get "$prep_config" "rain_snow_chunks_time" "")"
+convert_chunks_time_rain_snow="$(yaml_get "$convert_config" "rain_snow_chunks_time" "")"
 method="$(yaml_get "$convert_config" "method" "conservative")"
 progress="$(yaml_get "$convert_config" "progress" "$(yaml_get "$prep_config" "progress" "auto")")"
 prep_python_cmd_cfg="$(yaml_get "$prep_config" "python_cmd" "")"
 convert_python_cmd_cfg="$(yaml_get "$convert_config" "python_cmd" "")"
 prep_dask_num_workers="$(yaml_get "$prep_config" "dask_num_workers" "1")"
 convert_dask_num_workers="$(yaml_get "$convert_config" "dask_num_workers" "$prep_dask_num_workers")"
+prep_dask_num_workers_rain_snow="$(yaml_get "$prep_config" "rain_snow_dask_num_workers" "")"
+convert_dask_num_workers_rain_snow="$(yaml_get "$convert_config" "rain_snow_dask_num_workers" "")"
 prep_dask_scheduler="$(yaml_get "$prep_config" "dask_scheduler" "threads")"
 convert_dask_scheduler="$(yaml_get "$convert_config" "dask_scheduler" "$prep_dask_scheduler")"
+prep_write_time_block="$(yaml_get "$prep_config" "write_time_block" "24")"
+convert_write_time_block="$(yaml_get "$convert_config" "write_time_block" "$prep_write_time_block")"
+prep_write_time_block_rain_snow="$(yaml_get "$prep_config" "rain_snow_write_time_block" "")"
+convert_write_time_block_rain_snow="$(yaml_get "$convert_config" "rain_snow_write_time_block" "")"
 
 usage() {
   cat <<USAGE
@@ -112,6 +120,7 @@ if [[ "$stage" == "prep" ]]; then
   python_cmd_cfg="$prep_python_cmd_cfg"
   dask_num_workers="$prep_dask_num_workers"
   dask_scheduler="$prep_dask_scheduler"
+  write_time_block="$prep_write_time_block"
 else
   python_cmd_cfg="$convert_python_cmd_cfg"
   if [[ -z "$python_cmd_cfg" ]]; then
@@ -119,7 +128,69 @@ else
   fi
   dask_num_workers="$convert_dask_num_workers"
   dask_scheduler="$convert_dask_scheduler"
+  write_time_block="$convert_write_time_block"
 fi
+
+resolve_workers_auto() {
+  local raw="$1"
+  local lc
+  lc="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$lc" != "auto" && "$lc" != "0" && -n "$lc" ]]; then
+    if [[ "$lc" =~ ^[0-9]+$ ]] && (( lc > 0 )); then
+      printf '%s' "$lc"
+      return 0
+    fi
+  fi
+
+  if [[ -n "${SLURM_CPUS_PER_TASK:-}" ]] && [[ "${SLURM_CPUS_PER_TASK}" =~ ^[0-9]+$ ]] && (( SLURM_CPUS_PER_TASK > 0 )); then
+    printf '%s' "$SLURM_CPUS_PER_TASK"
+    return 0
+  fi
+
+  if command -v nproc >/dev/null 2>&1; then
+    local n
+    n="$(nproc 2>/dev/null || true)"
+    if [[ "$n" =~ ^[0-9]+$ ]] && (( n > 0 )); then
+      printf '%s' "$n"
+      return 0
+    fi
+  fi
+
+  printf '%s' "1"
+}
+
+apply_rain_snow_overrides() {
+  local var="$1"
+  local stage_name="$2"
+
+  if [[ "$var" != "Rainf" && "$var" != "Snowf" ]]; then
+    return 0
+  fi
+
+  if [[ "$stage_name" == "prep" ]]; then
+    if [[ -n "$prep_chunks_time_rain_snow" ]]; then
+      prep_chunks_time="$prep_chunks_time_rain_snow"
+    fi
+    if [[ -n "$prep_dask_num_workers_rain_snow" ]]; then
+      dask_num_workers="$prep_dask_num_workers_rain_snow"
+    fi
+    if [[ -n "$prep_write_time_block_rain_snow" ]]; then
+      write_time_block="$prep_write_time_block_rain_snow"
+    fi
+  else
+    if [[ -n "$convert_chunks_time_rain_snow" ]]; then
+      convert_chunks_time="$convert_chunks_time_rain_snow"
+    fi
+    if [[ -n "$convert_dask_num_workers_rain_snow" ]]; then
+      dask_num_workers="$convert_dask_num_workers_rain_snow"
+    fi
+    if [[ -n "$convert_write_time_block_rain_snow" ]]; then
+      write_time_block="$convert_write_time_block_rain_snow"
+    fi
+  fi
+}
+
+apply_rain_snow_overrides "$var_name" "$stage"
 
 # Ensure local source tree is importable in batch jobs without editable install.
 if [[ -n "${PYTHONPATH:-}" ]]; then
@@ -129,8 +200,10 @@ else
 fi
 
 # Keep memory bounded on large ERA5 jobs unless user explicitly overrides.
-export ERA5_DASK_NUM_WORKERS="${ERA5_DASK_NUM_WORKERS:-$dask_num_workers}"
+resolved_dask_workers="$(resolve_workers_auto "$dask_num_workers")"
+export ERA5_DASK_NUM_WORKERS="${ERA5_DASK_NUM_WORKERS:-$resolved_dask_workers}"
 export ERA5_DASK_SCHEDULER="${ERA5_DASK_SCHEDULER:-$dask_scheduler}"
+export ERA5_WRITE_TIME_BLOCK="${ERA5_WRITE_TIME_BLOCK:-$write_time_block}"
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
 export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
 export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
@@ -267,7 +340,7 @@ echo "[task] stage=$stage year=$year var=$var_name"
 if [[ -n "${SLURM_JOB_ID:-}" ]]; then
   echo "[task] slurm_job_id=${SLURM_JOB_ID} cpus_per_task=${SLURM_CPUS_PER_TASK:-n/a} mem_per_node=${SLURM_MEM_PER_NODE:-n/a} mem_per_cpu=${SLURM_MEM_PER_CPU:-n/a}"
 fi
-echo "[task] dask_scheduler=$ERA5_DASK_SCHEDULER dask_num_workers=$ERA5_DASK_NUM_WORKERS"
+echo "[task] dask_scheduler=$ERA5_DASK_SCHEDULER dask_num_workers=$ERA5_DASK_NUM_WORKERS write_time_block=$ERA5_WRITE_TIME_BLOCK"
 echo "[task] command: ${cmd[*]}"
 
 if [[ "$dry_run" -eq 1 ]]; then

@@ -152,8 +152,8 @@ def infer_timestep_seconds(time_values: Iterable[np.datetime64]) -> float:
 
 
 def stage1_file_path(stage1_root: str | Path, year: int, target_var: str) -> Path:
-    return Path(stage1_root) / str(year) / f"ERA5.STAGE1.{target_var}.{year}.nc"
+    return Path(stage1_root) / str(year) / f"ERA5.{target_var}.{year}.ILS.nc"
 
 
 def output_file_path(output_root: str | Path, year: int, target_var: str) -> Path:
-    return Path(output_root) / str(year) / f"GSWP3.BC.{target_var}.1hrMap.ILS.{year}.nc"
+    return Path(output_root) / str(year) / f"ERA5.30min.{target_var}.1hrMap.ILS.{year}.nc"

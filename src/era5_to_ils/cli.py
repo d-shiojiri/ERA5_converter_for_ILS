@@ -36,7 +36,7 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     convert_var.add_argument(
         "--output-root",
         type=str,
-        default="/data02/shiojiri/ILS/ILS_data/ERA5/out",
+        default="/data02/shiojiri/ILS/ILS_data/ERA5/30min",
     )
     convert_var.add_argument("--chunks-time", type=int, default=168)
     convert_var.add_argument(
@@ -64,7 +64,7 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     convert.add_argument(
         "--output-root",
         type=str,
-        default="/data02/shiojiri/ILS/ILS_data/ERA5/out",
+        default="/data02/shiojiri/ILS/ILS_data/ERA5/30min",
     )
     convert.add_argument("--chunks-time", type=int, default=168)
     convert.add_argument(
@@ -84,7 +84,7 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     validate.add_argument(
         "--output-root",
         type=str,
-        default="/data02/shiojiri/ILS/ILS_data/ERA5/out",
+        default="/data02/shiojiri/ILS/ILS_data/ERA5/30min",
     )
     validate.add_argument("--vars", type=str, default="")
 

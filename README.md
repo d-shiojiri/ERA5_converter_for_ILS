@@ -46,6 +46,8 @@ If you switch back to `.venv/bin/python` and `.venv` is missing, it automaticall
 ./scripts/submit_year_var_pipeline_jobs.sh --years 2013-2022 --executor sbatch
 ```
 
+`submit_year_var_pipeline_jobs.sh` now skips year-variable pairs whose final Program B output already exists, so only missing outputs are scheduled.
+
 ## Parallelism and CPU Allocation
 
 Recommended workflow:
@@ -66,17 +68,21 @@ Chunk-size recommendation:
 - Program A now casts loaded inputs to `float32` before derived-variable computation to reduce peak memory.
 - Default has been set to `chunks_time: 6` in both `prep_default.yaml` and `convert_default.yaml`.
 - Dask write compute defaults are memory-bounded via:
-  - `dask_num_workers: 1`
+  - `dask_num_workers: auto` (uses `SLURM_CPUS_PER_TASK` when available)
   - `dask_scheduler: threads`
+- NetCDF write is executed in time blocks to avoid one huge dask graph:
+  - `write_time_block: 6` (configurable in `prep_default.yaml` / `convert_default.yaml`)
 - NetCDF write chunking is fixed to `time=1` (one timestep per compressed chunk) for both Program A and Program B outputs.
+- `Rainf` / `Snowf` can use dedicated tuning keys in both prep/convert configs:
+  - `rain_snow_chunks_time`
+  - `rain_snow_dask_num_workers`
+  - `rain_snow_write_time_block`
 
 - `--max-parallel-jobs N`: max concurrent jobs
   - `--executor local`: local worker count
   - `--executor sbatch`: cap concurrent jobs by dependency chaining (`afterany`)
 - `--cpus N`: CPU cores per job when `--executor sbatch` (`sbatch --cpus-per-task`)
-- `--mem 24G`: memory per job for `sbatch` (default)
-- `auto_adjust_cpus_for_mem` (YAML): if `true`, auto-increase `cpus` when `mem` exceeds
-  `assumed_mem_per_cpu_gb * cpus` (default `4G/core`)
+- `--mem`: memory per job for `sbatch` (default is omitted via `mem: auto`)
 - `--time 02:00:00`: walltime per job for `sbatch`
 - `--partition <name>`: Slurm partition for `sbatch`
 - Old log cleanup on rerun is enabled by default via `clean_old_logs: true` in
@@ -94,6 +100,17 @@ Examples:
 # Slurm: run up to 9 concurrent jobs, 6 cores/job, 24GB memory, 4 hours
 ./scripts/submit_year_var_pipeline_jobs.sh --years 2000-2001 --executor sbatch --max-parallel-jobs 9 --cpus 6 --mem 24G --time 04:00:00
 ```
+
+## Rebuild Incomplete Outputs
+
+```bash
+./scripts/cleanup_incomplete_tmp_files.sh
+./scripts/submit_year_var_pipeline_jobs.sh --years 2013-2022 --executor sbatch
+```
+
+- `cleanup_incomplete_tmp_files.sh` is delete-only (`*.tmp*` cleanup).
+- After cleanup, run `submit_year_var_pipeline_jobs.sh`; it schedules only missing Program B outputs.
+- Each scheduled pipeline task also skips Program A when the canonical file already exists.
 
 ## Supported Target Variables
 

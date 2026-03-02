@@ -3,8 +3,13 @@ input_root: /data02/shiojiri/DATA/ERA5/download/reanalysis-era5-single-levels/
 output_root: /data02/shiojiri/ILS/ILS_data/ERA5/era5_canonical
 python_cmd: singularity exec /data10/imageshare/shiojiri/pyenv.sif python3
 lat_order: descending
-chunks_time: 6
-dask_num_workers: 1
+chunks_time: 24
+dask_num_workers: auto
 dask_scheduler: threads
+write_time_block: 24
+# Optional fast path for Rainf/Snowf (snowfall input has different storage layout).
+rain_snow_chunks_time: 48
+rain_snow_dask_num_workers: 4
+rain_snow_write_time_block: 24
 progress: auto
 overwrite: false
