@@ -1,0 +1,10 @@
+# submit_year_var_jobs.sh defaults
+executor: sbatch
+log_dir: /data02/shiojiri/ILS/ILS_data/ERA5/logs
+max_parallel_jobs: 9
+partition: ""
+cpus: 12
+mem: auto
+time: 04:00:00
+vars: Tair,Qair,PSurf,Wind,SWdown,LWdown,Precip,Rainf,Snowf,CCover
+clean_old_logs: true

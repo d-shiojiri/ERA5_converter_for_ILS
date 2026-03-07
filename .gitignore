@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.nc
+
+logs/
+era5_canonical/
+30min/
+docs/
+ERA5_ptb_30min
+

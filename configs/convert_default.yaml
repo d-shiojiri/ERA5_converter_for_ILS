@@ -1,0 +1,15 @@
+# Program B default config
+canonical_root: /data02/shiojiri/ILS/ILS_data/ERA5/era5_canonical
+output_root: /data02/shiojiri/ILS/ILS_data/ERA5/30min
+python_cmd: singularity exec /data10/imageshare/shiojiri/pyenv.sif python3
+chunks_time: 6
+dask_num_workers: auto
+dask_scheduler: threads
+write_time_block: 6
+# Optional fast path for Rainf/Snowf.
+rain_snow_chunks_time: 48
+rain_snow_dask_num_workers: 4
+rain_snow_write_time_block: 24
+method: conservative
+progress: auto
+overwrite: false

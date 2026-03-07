@@ -1,0 +1,25 @@
+# submit_perturb_era5_30min_members_jobs.sh defaults
+#
+# Keep keys at top-level.
+
+executor: sbatch
+max_parallel_jobs: 8
+cpus: 12
+mem: auto
+time: 06:00:00
+partition: ""
+log_dir: /data02/shiojiri/ILS/ILS_data/ERA5_pf/perturbed_forcing/ERA5_ptb_30min/logs
+
+input_root: /data02/shiojiri/ILS/ILS_data/ERA5/30min
+output_root: /data02/shiojiri/ILS/ILS_data/ERA5_pf/perturbed_forcing/ERA5_ptb_30min
+random_file: /data02/shiojiri/ILS/ILS_data/ERA5_pf/perturbed_forcing/continuous_random_19000101_20260101.nc
+python_cmd: singularity exec /data10/imageshare/shiojiri/pyenv.sif python3
+
+vars: Rainf,Snowf,SWdown,LWdown
+members: 1-20
+time_chunk: 48
+
+# Optional:
+# years: 2013-2022
+# overwrite: false
+# worker_script: workers/perturb_era5_30min_members.py

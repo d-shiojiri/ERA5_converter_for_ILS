@@ -1,0 +1,102 @@
+Metadata-Version: 2.4
+Name: era5-ils-converter
+Version: 0.1.0
+Summary: Two-stage ERA5 to ILS conversion pipeline
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.24
+Requires-Dist: xarray>=2023.1
+Requires-Dist: netcdf4>=1.6
+Requires-Dist: dask>=2023.1
+Requires-Dist: tqdm>=4.65
+Requires-Dist: PyYAML>=6.0
+Provides-Extra: regrid
+Requires-Dist: xesmf>=0.8; extra == "regrid"
+Provides-Extra: test
+Requires-Dist: pytest>=8.0; extra == "test"
+
+# ERA5 -> ILS Converter
+
+This repository converts ERA5 single-level data into ILS-compatible forcing files using a two-program pipeline.
+
+- Program A (`era5-prep`): converts ERA5 into ILS-readable variables/metadata without changing spatial resolution
+- Program B (`ils-resample`, alias: `era5-to-ils`): aligns Program A output to the ILS default 0.5deg grid
+
+## Quick Start
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -e .
+```
+
+Default runner uses the project venv interpreter (`.venv/bin/python`) in both local and Slurm jobs.
+If `.venv` is missing, it automatically falls back to system `python`/`python3`.
+If needed, override `python_cmd` in:
+- `configs/prep_default.yaml`
+- `configs/convert_default.yaml`
+
+## Run A/B Separately (Single Year x Variable)
+
+```bash
+./scripts/run_year_var_task.sh --stage prep --year 2000 --var Tair
+./scripts/run_year_var_task.sh --stage convert --year 2000 --var Tair
+```
+
+## Run Program A -> Program B as One Task
+
+```bash
+./scripts/run_year_var_pipeline_task.sh --year 2000 --var Tair
+```
+
+## Submit Parallel Jobs
+
+```bash
+./scripts/submit_year_var_jobs.sh --stage prep --years 2013-2022 --executor sbatch
+./scripts/submit_year_var_pipeline_jobs.sh --years 2013-2022 --executor sbatch
+```
+
+## Parallelism and CPU Allocation
+
+Recommended workflow:
+- Edit YAML defaults first (so you do not need to pass many CLI options repeatedly):
+  - `configs/submit_default.yaml`
+  - `configs/submit_pipeline_default.yaml`
+  - `configs/prep_default.yaml`
+  - `configs/convert_default.yaml`
+
+Chunk-size recommendation:
+- `chunks_time: 168` can be memory-heavy for ERA5 global grids.
+- Approximate memory per single variable chunk (`721 x 1440 x chunks_time`):
+  - `168`: `~665 MiB` (`float32`) / `~1331 MiB` (`float64`)
+  - `24`: `~95 MiB` (`float32`) / `~190 MiB` (`float64`)
+  - `12`: `~48 MiB` (`float32`) / `~95 MiB` (`float64`)
+- Because derived-variable steps hold multiple arrays at once, practical peak memory can be several times larger than one chunk.
+- Default has been set to `chunks_time: 24` in both `prep_default.yaml` and `convert_default.yaml`.
+- NetCDF write chunking is fixed to `time=1` (one timestep per compressed chunk) for both Program A and Program B outputs.
+
+- `--local-parallel N`: max concurrent jobs when `--executor local`
+- `--cpus N`: CPU cores per job when `--executor sbatch` (`sbatch --cpus-per-task`)
+- `--mem 8G`: memory per job for `sbatch`
+- `--time 02:00:00`: walltime per job for `sbatch`
+- `--partition <name>`: Slurm partition for `sbatch`
+- Old log cleanup on rerun is enabled by default via `clean_old_logs: true` in
+  `configs/submit_default.yaml` and `configs/submit_pipeline_default.yaml`.
+
+Examples:
+
+```bash
+# After editing YAML defaults, run with minimal options
+./scripts/submit_year_var_pipeline_jobs.sh --years 2000-2001
+
+# Local parallelism: run up to 6 tasks at once
+./scripts/submit_year_var_jobs.sh --stage prep --years 2000-2001 --executor local --local-parallel 6
+
+# Slurm: 4 cores per job, 16GB memory, 3 hours
+./scripts/submit_year_var_pipeline_jobs.sh --years 2000-2001 --executor sbatch --cpus 4 --mem 16G --time 03:00:00
+```
+
+## Supported Target Variables
+
+`Tair`, `Qair`, `PSurf`, `Wind`, `SWdown`, `LWdown`, `Precip`, `Rainf`, `Snowf`, `CCover`
